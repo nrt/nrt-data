@@ -19,6 +19,7 @@ import warning
 
 import xarray as xr
 import rasterio
+import pooch
 
 # Import for backward compatibility and deprecation warnings
 from .simulate import make_ts as _make_ts
@@ -26,22 +27,35 @@ from .simulate import make_cube_parameters as _make_cube_parameters
 from .simulate import make_cube as _make_cube
 
 
-data_dir = os.path.abspath(os.path.dirname(__file__))
+DATA_DIR = os.path.abspath(os.path.dirname(__file__))
+
+GOODBOY = pooch.create(
+    path=pooch.os_cache("nrt-validate"),
+    base_url="https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/FOREST/NRT/NRT-DATA/VER1-0/",
+    registry={
+        "sentinel2_cube_subset_romania_10m.nc": None,
+        "sentinel2_cube_subset_romania_20m.nc": None,
+        "tree_cover_density_2018_romania.tif": None
+    }
+)
 
 
 def _load(f, **kwargs):
-    """Load a ncdf file located in the data directory as a xarray Dataset
+    """Load a file using Pooch
 
     Args:
         f (str): File basename
-        **kwargs: Keyword arguments passed to ``xarray.open_dataset``
+        **kwargs: Keyword arguments for xarray or rasterio
 
-    Return:
-        xarray.Dataset: The Dataset
+    Returns:
+        Dataset or array depending on file type
     """
-    xr_dataset = xr.open_dataset(os.path.join(data_dir, f),
-                                 **kwargs)
-    return xr_dataset
+    file_path = GOODBOY.fetch(f)
+    if f.endswith('.nc'):
+        return xr.open_dataset(file_path, **kwargs)
+    elif f.endswith('.tif'):
+        with rasterio.open(file_path) as src:
+            return src.read(1)
 
 
 def romania_10m(**kwargs):
@@ -56,7 +70,7 @@ def romania_10m(**kwargs):
         >>> # Filter clouds
         >>> s2_cube = s2_cube.where(s2_cube.SCL.isin([4,5,7]))
     """
-    return _load(f='sentinel2_cube_subset_romania_10m.nc', **kwargs)
+    return _load('sentinel2_cube_subset_romania_10m.nc', **kwargs)
 
 
 def romania_20m(**kwargs):
@@ -71,17 +85,13 @@ def romania_20m(**kwargs):
         >>> # Filter clouds
         >>> s2_cube = s2_cube.where(s2_cube.SCL.isin([4,5,7]))
     """
-    return _load(f='sentinel2_cube_subset_romania_20m.nc', **kwargs)
+    return _load('sentinel2_cube_subset_romania_20m.nc', **kwargs)
 
 
 def romania_forest_cover_percentage():
     """Subset of Copernicus HR layer tree cover percentage - 20 m - Romania
     """
-    file_basename = 'tree_cover_density_2018_romania.tif'
-    filename = os.path.join(data_dir, file_basename)
-    with rasterio.open(filename) as src:
-        arr = src.read(1)
-    return arr
+    return _load('tree_cover_density_2018_romania.tif')
 
 
 def mre_crit_table():
@@ -107,7 +117,7 @@ def mre_crit_table():
         >>> sig_level = crit_table.get('sig_levels')
         >>> crit_level = np.interp(1-alpha, sig_level, crit_values)
     """
-    with open(os.path.join(data_dir, "mreCritValTable.json")) as crit:
+    with open(os.path.join(DATA_DIR, "mreCritValTable.json")) as crit:
         crit_table = json.load(crit)
     return crit_table
 
