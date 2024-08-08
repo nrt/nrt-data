@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=40.8.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nrt-data"
+version = "0.1.0"  # Replace with dynamic versioning if necessary
+description = "nrt namespace package giving access to demo and test datasets, extracted from nrt core"
+readme = "README.rst"
+authors = [
+    {name = "Loic Dutrieux", email = "loic.dutrieux@ec.europa.eu"},
+    {name = "Jonas Viehweger"}
+]
+keywords = ["sentinel2", "xarray", "zarr", "netcdf"]
+license = {file = "LICENSE"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+requires-python = ">= 3.9"
+dependencies = [
+    "numpy",
+    "xarray",
+    "rasterio",
+    "rioxarray",
+    "netCDF4",
+    "zarr",
+    "aiohttp",
+    "pooch"
+]
+
+[project.urls]
+homepage = "https://code.europa.eu/jrc-forest/nrt-data"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["nrt.data"]
+
+[tool.setuptools.package-data]
+"nrt.data" = ["*.json"]
