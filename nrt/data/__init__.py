@@ -15,9 +15,15 @@
 
 import os
 import json
+import warning
 
 import xarray as xr
 import rasterio
+
+# Import for backward compatibility and deprecation warnings
+from .simulate import make_ts as _make_ts
+from .simulate import make_cube_parameters as _make_cube_parameters
+from .simulate import make_cube as _make_cube
 
 
 data_dir = os.path.abspath(os.path.dirname(__file__))
@@ -104,6 +110,39 @@ def mre_crit_table():
     with open(os.path.join(data_dir, "mreCritValTable.json")) as crit:
         crit_table = json.load(crit)
     return crit_table
+
+
+def make_ts(*args, **kwargs):
+    warnings.warn(
+        "The function 'make_ts' has been moved to 'nrt.data.simulate'. "
+        "Please update your imports to 'from nrt.data.simulate import make_ts'. "
+        "This import path will be deprecated in future versions.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return _make_ts(*args, **kwargs)
+
+
+def make_cube_parameters(*args, **kwargs):
+    warnings.warn(
+        "The function 'make_cube_parameters' has been moved to 'nrt.data.simulate'. "
+        "Please update your imports to 'from nrt.data.simulate import make_cube_parameters'. "
+        "This import path will be deprecated in future versions.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return _make_cube_parameters(*args, **kwargs)
+
+
+def make_cube(*args, **kwargs):
+    warnings.warn(
+        "The function 'make_cube' has been moved to 'nrt.data.simulate'. "
+        "Please update your imports to 'from nrt.data.simulate import make_cube'. "
+        "This import path will be deprecated in future versions.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return _make_cube(*args, **kwargs)
 
 
 if __name__ == "__main__":
