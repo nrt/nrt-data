@@ -19,7 +19,7 @@ if __name__ == '__main__':
     with rasterio.open('.virtualenvs/stac/lib/python3.10/site-packages/nrt/data/tree_cover_density_2018_romania.tif') as con:
         bbox_proj = con.bounds
         crs = con.crs
-    gbox = GeoBox.from_bbox(bbox=bbox_proj, crs=crs, resolution=10)
+    gbox = GeoBox.from_bbox(bbox=bbox_proj, crs=crs, resolution=10, tight=True)
 
     # Set up a local dask cluster and configure stac-odc
     cluster = LocalCluster(n_workers=5, threads_per_worker=2,
