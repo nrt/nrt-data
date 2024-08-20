@@ -100,7 +100,11 @@ def germany_zarr(**kwargs):
     so that running the ``germany_zarr()`` function only creates a symbolic representation
     of the dataset (dask based). Lazy chunks can be eagerly loaded by invoking the
     ``.compute()`` method. Beware that loading the entire dataset may take a fairly
-    long time due to its size (4.9 GB).
+    long time due to its size (4.8 GB).
+    Note that although data is stored as int16, the scaling factor is automatically
+    applied to convert spectral channels to unscaled surface reflectance values
+    and the corresponding data variables are casted to float64. No data pixels are
+    also automatically converted to ``np.nan``
 
     Args:
         **kwargs: Additional keyword arguments passed to ``xarray.open_zarr()``
@@ -118,12 +122,12 @@ def germany_zarr(**kwargs):
           * x            (x) float64 4.133e+06 4.133e+06 ... 4.153e+06 4.153e+06
           * y            (y) float64 3.113e+06 3.113e+06 ... 3.093e+06 3.093e+06
         Data variables:
-            B02          (time, y, x) uint16 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
-            B03          (time, y, x) uint16 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
-            B04          (time, y, x) uint16 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
-            B08          (time, y, x) uint16 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
-            B11          (time, y, x) uint16 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
-            B12          (time, y, x) uint16 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
+            B02          (time, y, x) float32 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
+            B03          (time, y, x) float32 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
+            B04          (time, y, x) float32 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
+            B08          (time, y, x) float32 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
+            B11          (time, y, x) float32 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
+            B12          (time, y, x) float32 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
             SCL          (time, y, x) uint8 dask.array<chunksize=(10, 100, 100), meta=np.ndarray>
         >>> # Load a subset in memory
         >>> print(sys.getsizeof(ds.B02.data))
