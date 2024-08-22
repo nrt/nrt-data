@@ -28,6 +28,7 @@ dependencies = [
     "netCDF4",
     "zarr",
     "aiohttp",
+    "fsspec",
     "pooch"
 ]
 
