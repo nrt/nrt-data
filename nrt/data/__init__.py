@@ -35,7 +35,8 @@ GOODBOY = pooch.create(
     registry={
         "sentinel2_cube_subset_romania_10m.nc": None,
         "sentinel2_cube_subset_romania_20m.nc": None,
-        "tree_cover_density_2018_romania.tif": None
+        "tree_cover_density_2018_romania.tif": None,
+        "germany_stratification.tif": None
     }
 )
 
@@ -143,6 +144,39 @@ def germany_zarr(**kwargs):
     ds = xr.open_zarr('https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/FOREST/NRT/NRT-DATA/VER1-0/germany.zarr',
                       **kwargs)
     return ds
+
+
+def germany_stratification():
+    """Simple rule based classification of forest dynamics for germany_zarr
+
+    Raster layer in the EPSG:3035 CRS, spatially aligned with the
+    `germany_zarr` data cube. The classification is based on a simple
+    rule-based approach applied to a pair of manually selected cloud-free time
+    steps (2019-06-27 and 2022-06-16). NDVI and the second SWIR band are used to
+    distinguish various tree cover dynamics, based on the assumption that healthy
+    forests are generally green in summer (indicated by high NDVI values) and dark
+    in the SWIR region. "Unhealthy" forests, such as standing dead trees following
+    a bark beetle attack, may still be dark in the SWIR region but with lower
+    greenness. Non-forested land lacks these combined characteristics.
+
+    Note that this approach is relatively simple and, as a result, produces an
+    imperfect classification. Although there may be some confusion between land 
+    cover elements that are difficult to discriminate solely based on NDVI and
+    SWIR values, the layer is well-suited for purposes such as stratification in a
+    stratified sampling design.
+
+    Classes are encoded as follows::
+
+        1: Non-forested land
+        2: Stable Forest (Constantly green and dark in the SWIR region)
+        3: Forest Cover Loss (Conversion from healthy forest to non-forested land)
+        4: Forest Canopy Dieback (Loss of greenness but still dark in SWIR)
+        5: Salvage Logging (From 'unhealthy' forest to non-forested land)
+
+    Returns:
+        numpy.ndarray: 2D array with encoded 2019-2022 tree cover dynamics.
+    """
+    return _load('germany_stratification.tif')
 
 
 def romania_forest_cover_percentage():
