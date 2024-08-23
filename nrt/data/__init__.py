@@ -37,7 +37,8 @@ GOODBOY = pooch.create(
         "sentinel2_cube_subset_romania_10m.nc": None,
         "sentinel2_cube_subset_romania_20m.nc": None,
         "tree_cover_density_2018_romania.tif": None,
-        "germany_stratification.tif": None
+        "germany_stratification.tif": None,
+        "germany_sample_points.fgb": None
     }
 )
 
@@ -193,6 +194,43 @@ def germany_stratification(return_meta=False):
         tree cover dynamics or (data, metadata) if ``return_meta`` is True.
     """
     return _load('germany_stratification.tif', return_meta=return_meta)
+
+
+def germany_sample_points(return_meta=False):
+    """
+    Loads a feature collection of 300 sample points from the Germany test area.
+
+    These points represent pixel centers sampled using a reclassified version
+    of the ``germany_stratification`` layer. In this reclassification, all
+    disturbance strata were combined into a single stratum, resulting in
+    stratified random sampling. An equal allocation method was employed,
+    with 100 samples per stratum.
+
+    The feature collection includes a ``stratum`` property with values 1, 2,
+    or 3, representing different strata:
+
+        - 1: Non-forested stratum (2,333,767 pixels)
+        - 2: Stable forest stratum (972,184 pixels)
+        - 3: Disturbed forest stratum (694,049 pixels)
+
+    Args:
+        return_meta (bool, optional): If True, returns both the feature collection
+            and associated metadata. Defaults to False.
+
+    Examples:
+        >>> from nrt import data
+        >>> fc = data.germany_sample_points()
+        >>> set([feat['properties']['stratum'] for feat in fc])
+        {1,2,3}
+        >>> len(fc)
+        300
+
+    Returns:
+        list or tuple: If `return_meta` is False, returns a list containing the 
+        feature collection of sample points. If `return_meta` is True, returns
+        a tuple of (feature collection, metadata).
+    """
+    return _load('germany_sample_points.fgb', return_meta=return_meta)
 
 
 def romania_forest_cover_percentage(return_meta=False):
