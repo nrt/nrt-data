@@ -197,8 +197,7 @@ def germany_stratification(return_meta=False):
 
 
 def germany_sample_points(return_meta=False):
-    """
-    Loads a feature collection of 300 sample points from the Germany test area.
+    """Feature collection of 300 sample points from the Germany test area.
 
     These points represent pixel centers sampled using a reclassified version
     of the ``germany_stratification`` layer. In this reclassification, all
