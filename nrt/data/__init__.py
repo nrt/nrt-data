@@ -19,6 +19,7 @@ import warnings
 
 import xarray as xr
 import rasterio
+import fiona
 import pooch
 
 # Import for backward compatibility and deprecation warnings
@@ -41,22 +42,36 @@ GOODBOY = pooch.create(
 )
 
 
-def _load(f, **kwargs):
+def _load(f, return_meta=False, **kwargs):
     """Load a file using Pooch
 
     Args:
         f (str): File basename
-        **kwargs: Keyword arguments for xarray or rasterio
+        return_meta (bool): If True, return metadata along with the
+            array (for .tif and .fgb files). Default is False.
+        **kwargs: Keyword arguments for xarray when loading nc files
 
     Returns:
-        Dataset or array depending on file type
+        Dataset, array, dictionary, or tuple depending on the file
+        type and options.
     """
     file_path = GOODBOY.fetch(f)
     if f.endswith('.nc'):
         return xr.open_dataset(file_path, **kwargs)
     elif f.endswith('.tif'):
         with rasterio.open(file_path) as src:
-            return src.read(1)
+            array = src.read(1)
+            if return_meta:
+                meta = src.meta
+                return array, meta
+            return array
+    elif f.endswith('.fgb'):
+        with fiona.open(file_path) as src:
+            data = list(src)  # Read all features into a list
+            if return_meta:
+                meta = src.meta
+                return data, meta
+            return data
 
 
 def romania_10m(**kwargs):
@@ -146,7 +161,7 @@ def germany_zarr(**kwargs):
     return ds
 
 
-def germany_stratification():
+def germany_stratification(return_meta=False):
     """Simple rule based classification of forest dynamics for germany_zarr
 
     Raster layer in the EPSG:3035 CRS, spatially aligned with the
@@ -174,15 +189,20 @@ def germany_stratification():
         5: Salvage Logging (From 'unhealthy' forest to non-forested land)
 
     Returns:
-        numpy.ndarray: 2D array with encoded 2019-2022 tree cover dynamics.
+        numpy.ndarray or (numpy.ndarray, dict): 2D array with encoded 2019-2022
+        tree cover dynamics or (data, metadata) if ``return_meta`` is True.
     """
-    return _load('germany_stratification.tif')
+    return _load('germany_stratification.tif', return_meta=return_meta)
 
 
-def romania_forest_cover_percentage():
+def romania_forest_cover_percentage(return_meta=False):
     """Subset of Copernicus HR layer tree cover percentage - 20 m - Romania
+
+    Returns:
+        numpy.ndarray or (numpy.ndarray, dict): The data or (data, metadata)
+        if ``return_meta`` is True.
     """
-    return _load('tree_cover_density_2018_romania.tif')
+    return _load('tree_cover_density_2018_romania.tif', return_meta=return_meta)
 
 
 def mre_crit_table():

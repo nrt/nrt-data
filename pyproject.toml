@@ -24,6 +24,7 @@ dependencies = [
     "numpy",
     "xarray",
     "rasterio",
+    "fiona",
     "rioxarray",
     "netCDF4",
     "zarr",
