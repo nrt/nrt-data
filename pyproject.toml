@@ -4,12 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nrt-data"
-version = "0.1.0"  # Replace with dynamic versioning if necessary
+version = "0.0.1"
 description = "nrt namespace package giving access to demo and test datasets, extracted from nrt core"
 readme = "README.rst"
 authors = [
-    {name = "Loic Dutrieux", email = "loic.dutrieux@ec.europa.eu"},
-    {name = "Jonas Viehweger"}
+    {name = "Loïc Dutrieux", email = "loic.dutrieux@ec.europa.eu"},
+    {name = "Jonas Viehweger"},
+    {name = "Kenji Ose"}
 ]
 keywords = ["sentinel2", "xarray", "zarr", "netcdf"]
 license = {file = "LICENSE"}
@@ -33,6 +34,9 @@ dependencies = [
     "pooch"
 ]
 
+[project.optional-dependencies]
+docs = ["sphinx", "sphinx_rtd_theme"]
+
 [project.urls]
 homepage = "https://code.europa.eu/jrc-forest/nrt-data"
 
@@ -42,3 +46,4 @@ include = ["nrt.data"]
 
 [tool.setuptools.package-data]
 "nrt.data" = ["*.json"]
+
