@@ -166,7 +166,7 @@ def germany_stratification(return_meta=False):
     """Simple rule based classification of forest dynamics for germany_zarr
 
     Raster layer in the EPSG:3035 CRS, spatially aligned with the
-    `germany_zarr` data cube. The classification is based on a simple
+    ``germany_zarr`` data cube. The classification is based on a simple
     rule-based approach applied to a pair of manually selected cloud-free time
     steps (2019-06-27 and 2022-06-16). NDVI and the second SWIR band are used to
     distinguish various tree cover dynamics, based on the assumption that healthy
