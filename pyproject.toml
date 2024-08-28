@@ -8,9 +8,12 @@ version = "0.0.1"
 description = "nrt namespace package giving access to demo and test datasets, extracted from nrt core"
 readme = "README.rst"
 authors = [
-    {name = "Loïc Dutrieux", email = "loic.dutrieux@ec.europa.eu"},
+    {name = "Loic Dutrieux", email = "loic.dutrieux@ec.europa.eu"},
     {name = "Jonas Viehweger"},
     {name = "Kenji Ose"}
+]
+maintainers = [
+  {name = "Loic Dutrieux", email = "loic.dutrieux@ec.europa.eu"}
 ]
 keywords = ["sentinel2", "xarray", "zarr", "netcdf"]
 license = {file = "LICENSE"}
