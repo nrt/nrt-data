@@ -29,7 +29,6 @@ dependencies = [
     "xarray",
     "rasterio",
     "fiona",
-    "rioxarray",
     "netCDF4",
     "zarr",
     "aiohttp",
