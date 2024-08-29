@@ -33,7 +33,7 @@ from .simulate import make_cube as _make_cube
 DATA_DIR = os.path.abspath(os.path.dirname(__file__))
 
 GOODBOY = pooch.create(
-    path=pooch.os_cache("nrt-validate"),
+    path=pooch.os_cache("nrt-data"),
     base_url="https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/FOREST/NRT/NRT-DATA/VER1-0/",
     registry={
         "sentinel2_cube_subset_romania_10m.nc": None,

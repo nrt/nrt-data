@@ -39,8 +39,12 @@ for stratum in strata:
 
 random.shuffle(samples)
 
+for idx, feature in enumerate(samples):
+    feature['properties']['fid'] = idx
+
 schema = {'geometry': 'Point',
-          'properties': {'stratum': 'int'}}
+          'properties': {'stratum': 'int',
+                         'fid': 'int'}}
 
 with fiona.open('/tmp/germany_sample_points.fgb', 'w',
                 crs=meta['crs'],

@@ -16,12 +16,13 @@ maintainers = [
   {name = "Loic Dutrieux", email = "loic.dutrieux@ec.europa.eu"}
 ]
 keywords = ["sentinel2", "xarray", "zarr", "netcdf"]
-license = {file = "LICENSE"}
+license = {text = "EUPL-1.2"}
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)"
 ]
 requires-python = ">= 3.9"
 dependencies = [
