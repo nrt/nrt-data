@@ -36,11 +36,11 @@ GOODBOY = pooch.create(
     path=pooch.os_cache("nrt-data"),
     base_url="https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/FOREST/NRT/NRT-DATA/VER1-0/",
     registry={
-        "sentinel2_cube_subset_romania_10m.nc": None,
-        "sentinel2_cube_subset_romania_20m.nc": None,
-        "tree_cover_density_2018_romania.tif": None,
-        "germany_stratification.tif": None,
-        "germany_sample_points.fgb": None
+        "sentinel2_cube_subset_romania_10m.nc": "sha256:f88716ff11353fa46990c59c57f31b4c9a8dfd4a950a845e073e41f6beb0ac07",
+        "sentinel2_cube_subset_romania_20m.nc": "sha256:5e6858fc0e31555e8de44bac57b989bb9a3c10117f4fddead943eb45b8c1be17",
+        "tree_cover_density_2018_romania.tif": "sha256:0d6a445b112de8ba44729df26c063650198e6214bc9d9349c3b4c86ee43894bb",
+        "germany_stratification.tif": "sha256:149d0c36b9f5d933ca12c4ea976f866e74c205ab708ac3bc4dd7062c74c4968c",
+        "germany_sample_points.fgb": "sha256:068cbda19fcfbd2dd1cf9a1d18f032685c971d6d22cb7bef1415109030753ace"
     }
 )
 
