@@ -1,10 +1,12 @@
 [build-system]
-requires = ["setuptools>=40.8.0", "wheel"]
+requires = ["setuptools>=64",
+            "wheel",
+            "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "nrt-data"
-version = "0.0.1.post0"
+dynamic = ["version"]
 description = "nrt namespace package giving access to demo and test datasets, extracted from nrt core"
 readme = "README.rst"
 authors = [
@@ -50,3 +52,5 @@ include = ["nrt.data"]
 [tool.setuptools.package-data]
 "nrt.data" = ["*.json"]
 
+[tool.setuptools_scm]
+fallback_version = "9999"
