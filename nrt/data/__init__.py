@@ -18,7 +18,9 @@ __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 import os
 import json
 import warnings
+import sqlite3
 
+import pandas as pd
 import xarray as xr
 import rasterio
 import fiona
@@ -40,7 +42,8 @@ GOODBOY = pooch.create(
         "sentinel2_cube_subset_romania_20m.nc": "sha256:5e6858fc0e31555e8de44bac57b989bb9a3c10117f4fddead943eb45b8c1be17",
         "tree_cover_density_2018_romania.tif": "sha256:0d6a445b112de8ba44729df26c063650198e6214bc9d9349c3b4c86ee43894bb",
         "germany_stratification.tif": "sha256:149d0c36b9f5d933ca12c4ea976f866e74c205ab708ac3bc4dd7062c74c4968c",
-        "germany_sample_points.fgb": "sha256:068cbda19fcfbd2dd1cf9a1d18f032685c971d6d22cb7bef1415109030753ace"
+        "germany_sample_points.fgb": "sha256:068cbda19fcfbd2dd1cf9a1d18f032685c971d6d22cb7bef1415109030753ace",
+        "germany_temporal_segments.sqlite": "sha256:248fc9ffd020764b4a5a1ece40976dc5f0622c68de6e9ae3005ad192d0233a14"
     }
 )
 
@@ -55,8 +58,8 @@ def _load(f, return_meta=False, **kwargs):
         **kwargs: Keyword arguments for xarray when loading nc files
 
     Returns:
-        Dataset, array, dictionary, or tuple depending on the file
-        type and options.
+        Dataset, array, dictionary, sqlite3 connection, or tuple depending on
+        the file type and options.
     """
     file_path = GOODBOY.fetch(f)
     if f.endswith('.nc'):
@@ -75,6 +78,8 @@ def _load(f, return_meta=False, **kwargs):
                 meta = src.meta
                 return data, meta
             return data
+    elif f.endswith('.sqlite'):
+        return sqlite3.connect(file_path)
 
 
 def romania_10m(**kwargs):
@@ -232,6 +237,63 @@ def germany_sample_points(return_meta=False):
         a tuple of (feature collection, metadata).
     """
     return _load('germany_sample_points.fgb', return_meta=return_meta)
+
+
+def germany_temporal_segments():
+    """Visually interpreted temporal segments for 300 sample locations in Germany.
+
+    This function loads temporal segmentation data, which has been visually
+    interpreted using the ``SegmentLabellingInterface`` of the ``nrt-data`` package.
+    The data corresponds to the sample locations from ``nrt.data.germany_sample_points()``
+    and can be joined with it using the ``fid`` or ``feature_id`` keys.
+
+    Each segment is labeled with one of three possible categories:
+
+        - Non-treed
+        - Stable tree cover
+        - Dieback
+
+    A common disturbance trajectory in this region, which has been heavily
+    affected by bark beetle activity, follows the pattern "Stable tree cover",
+    "Dieback", and then "Non-treed." For some sample locations, no label could be
+    confidently assigned, and these are represented with a single segment labeled `None`.
+
+    Additional information about the dataset:
+
+        - Temporal segmentation is valid for the period between 2019-01-01 and 2021-12-31.
+        - Each segment has a ``begin`` and ``end`` time represented as days since epoch.
+        - The segmentation data may contain errors for ambiguous samples, particularly
+          near edges, in mixed or sparse forests, or for shrub-like vegetation easily
+          mistaken for trees.
+        - Temporal precision may vary, especially in cases where gradual processes like
+          canopy dieback are difficult to date accurately.
+
+    Examples:
+        >>> from nrt import data
+        >>> data.germany_temporal_segments()
+              id  begin    end              label  feature_id
+        0      1  17916  18981          Non-treed           0
+        1      2  17916  18981          Non-treed           1
+        2      3  17916  18981          Non-treed           2
+        3      4  17916  18981          Non-treed           3
+        4      5  17916  18981  Stable tree cover           4
+        ..   ...    ...    ...                ...         ...
+        413  414  17916  18981          Non-treed         295
+        414  415  17916  18981  Stable tree cover         296
+        415  416  17916  18981          Non-treed         297
+        416  417  17916  18981          Non-treed         298
+        417  418  17916  18981  Stable tree cover         299
+
+        [418 rows x 5 columns]
+
+    Returns:
+        pandas.DataFrame: A data-frame containing 418 rows and 5 columns, with each
+        row representing a temporal segment for a sample location.
+    """
+    con = _load('germany_temporal_segments.sqlite')
+    df = pd.read_sql('SELECT * FROM segments;', con=con)
+    con.close()
+    return df
 
 
 def romania_forest_cover_percentage(return_meta=False):
