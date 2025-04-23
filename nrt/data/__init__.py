@@ -131,7 +131,12 @@ def germany_zarr(**kwargs):
     also automatically converted to ``np.nan``
 
     Args:
-        **kwargs: Additional keyword arguments passed to ``xarray.open_zarr()``
+        **kwargs: Additional keyword arguments passed to ``xarray.open_zarr()``.
+            A common option useful, when working on a corporate network and
+            accessing the internet via a proxy is
+            ``storage_options={"client_kwargs": {"trust_env": True}}``. This
+            ensures that the proxy settings are automatically picked up from the
+            environment variables.
 
     Examples:
         >>> import sys
