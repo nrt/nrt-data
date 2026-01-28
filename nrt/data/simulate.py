@@ -13,8 +13,12 @@
 # along with this program.
 # If not, see <https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12 >
 
+import datetime
+from typing import Tuple, Optional
+
 import numpy as np
 import xarray as xr
+from scipy.ndimage import gaussian_filter
 
 
 def make_ts(dates, break_idx=-1, intercept=0.7, amplitude=0.15, magnitude=0.25,
@@ -267,6 +271,146 @@ def make_cube(dates, params_ds, outlier_value=0.1, name='ndvi'):
                                    'x': np.arange(ncols)},
                           name=name)
     return xr_cube
+
+
+def generate_landscape(
+    shape: Tuple[int, int] = (5000, 5000),
+    year: int = 2020,
+    forest_pct: float = 0.70,
+    loss_pct: float = 0.03,
+    forest_compactness: float = 60.0,
+    disturbance_clustering: float = 30.0,
+    disturbance_roughness: float = 3.0,
+    disturbance_roughness_share: float = 0.1,
+    seed: Optional[int] = None
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Generates a synthetic landscape with spatio-temporally correlated forest loss.
+
+    Uses Gaussian filtering of white noise to create spatially autocorrelated
+    structures for both forest cover and disturbance patches.
+    Temporal dates are assigned using a gradient from patch center (early) to
+    edge (late).
+
+    Args:
+        shape (tuple): Dimensions of the output array (rows, cols). Defaults to (5000, 5000).
+        year (int): The year to simulate. Dates will be returned as days since
+            1970-01-01, starting from Jan 1st of this year. Defaults to 2020.
+        forest_pct (float): Target percentage of forest cover (0.0 to 1.0).
+            Defaults to 0.70.
+        loss_pct (float): Target percentage of forest loss relative to the total
+            landscape area. Defaults to 0.03.
+        forest_compactness (float): Sigma for forest smoothing. Higher values create
+            larger, smoother contiguous forest blocks. Defaults to 60.0.
+        disturbance_clustering (float): Sigma for disturbance structure. Higher values
+            create larger, fewer disturbance patches. Defaults to 30.0.
+        disturbance_roughness (float): Sigma for disturbance texture. Lower values
+            create jagged, scattered pixel edges. Defaults to 3.0.
+        disturbance_roughness_share (float): Weight (0.0 to 1.0) of roughness vs
+            clustering. Higher values add more salt-and-pepper noise.
+            Defaults to 0.1.
+        seed: Random seed for reproducibility. Defaults to None.
+
+    Examples:
+        >>> import numpy as np
+        >>> from nrt.data import simulate
+        >>> from matplotlib import pyplot as plt
+
+        >>> mask, disturbance = simulate.generate_landscape(shape=(2000,2000),
+        ...                                                 forest_pct=0.60,
+        ...                                                 loss_pct=0.02,
+        ...                                                 seed=42)
+
+        >>> # For mask plot make green forests and magenta disturbances
+        >>> # For disturbance plot use a colormap that goes from jan 2020 to dec 2020 (in days since 1970)
+        >>> fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+        >>> # 1. Land Cover Map
+        >>> cmap_lc = plt.cm.colors.ListedColormap(['#eecfa1', '#228b22', '#ff00ff'])
+        >>> ax[0].imshow(mask, cmap=cmap_lc, interpolation='none')
+        >>> ax[0].set_title("Mask")
+        >>> ax[0].axis('off')
+        >>> # 2. Date of Disturbance Map
+        >>> masked_disturbance = np.ma.masked_where(disturbance == 0, disturbance)
+        >>> im = ax[1].imshow(masked_disturbance, cmap='jet_r', interpolation='none')
+        >>> ax[1].set_title("Disturbance date (Temporally Correlated)")
+        >>> ax[1].axis('off')
+        >>> plt.colorbar(im, ax=ax[1], label="Day since 1970", fraction=0.046, pad=0.04)
+        >>> plt.tight_layout()
+        >>> plt.show()
+
+    Returns:
+        A tuple (land_cover, loss_dates) where:
+
+        * **land_cover** (np.ndarray): int8 array where 0=Non-Forest,
+          1=Forest, 2=Loss.
+        * **loss_dates** (np.ndarray): int32 array representing the date of
+          loss as days since 1970-01-01. Pixels with no loss are 0.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+    # 1. Generate Forest Cover
+    # High sigma creates large contiguous 'continents'
+    noise_forest = np.random.rand(*shape)
+    smooth_forest = gaussian_filter(noise_forest, sigma=forest_compactness)
+    forest_threshold = np.percentile(smooth_forest, (1 - forest_pct) * 100)
+    is_forest = smooth_forest >= forest_threshold
+
+    # 2. Generate Disturbance Potential
+    # Mix large blobs (structure) with fine grain noise (roughness/texture)
+    noise_struct = gaussian_filter(np.random.rand(*shape), sigma=disturbance_clustering)
+    noise_text = gaussian_filter(np.random.rand(*shape), sigma=disturbance_roughness)
+
+    # Weighted composition
+    w_struct = 1.0 - disturbance_roughness_share
+    loss_potential = (w_struct * noise_struct) + (disturbance_roughness_share * noise_text)
+
+    # 3. Apply Loss Threshold (Strictly inside Forest)
+    valid_potential = loss_potential[is_forest]
+    # Calculate how many pixels we need relative to the forest area
+    target_px = shape[0] * shape[1] * loss_pct
+
+    # Safety check for 0 loss
+    if target_px > 0 and len(valid_potential) > 0:
+        relative_pct = target_px / len(valid_potential)
+        loss_cutoff = np.percentile(valid_potential, (1 - relative_pct) * 100)
+        is_loss = (loss_potential >= loss_cutoff) & is_forest
+    else:
+        is_loss = np.zeros(shape, dtype=bool)
+
+    # 4. Temporal Attribution (Gradient Method)
+    # Use int32 for absolute dates (days since 1970 can exceed int16 limit)
+    loss_dates = np.zeros(shape, dtype=np.int32)
+
+    if np.any(is_loss):
+        # Calculate start offset (Days from 1970-01-01 to Year-01-01)
+        start_date = datetime.date(year, 1, 1)
+        epoch = datetime.date(1970, 1, 1)
+        start_offset = (start_date - epoch).days
+
+        loss_values = loss_potential[is_loss]
+        v_min, v_max = loss_values.min(), loss_values.max()
+
+        # Normalize 0..1
+        norm_values = (loss_values - v_min) / (v_max - v_min)
+
+        # Invert: Center (High Pot) -> Day 1, Edge (Low Pot) -> Day 365
+        # We assume loss spans the full year (1-365)
+        doy_values = 1 + ((1 - norm_values) * 364).astype(np.int32)
+
+        # Add jitter
+        jitter = np.random.randint(-3, 4, size=doy_values.shape)
+        doy_values = np.clip(doy_values + jitter, 1, 365)
+
+        # Convert to Days since 1970
+        # date = start_offset + doy - 1
+        loss_dates[is_loss] = start_offset + doy_values - 1
+
+    # 5. Assemble Land Cover
+    land_cover = np.zeros(shape, dtype=np.int8)
+    land_cover[is_forest] = 1
+    land_cover[is_loss] = 2  # Overwrite forest with loss
+
+    return land_cover, loss_dates
+
 
 if __name__ == "__main__":
     import doctest
