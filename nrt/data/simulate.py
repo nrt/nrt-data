@@ -273,7 +273,7 @@ def make_cube(dates, params_ds, outlier_value=0.1, name='ndvi'):
     return xr_cube
 
 
-def generate_landscape(
+def make_landscape(
     shape: Tuple[int, int] = (5000, 5000),
     year: int = 2020,
     forest_pct: float = 0.70,
@@ -315,10 +315,10 @@ def generate_landscape(
         >>> from nrt.data import simulate
         >>> from matplotlib import pyplot as plt
 
-        >>> mask, disturbance = simulate.generate_landscape(shape=(2000,2000),
-        ...                                                 forest_pct=0.60,
-        ...                                                 loss_pct=0.02,
-        ...                                                 seed=42)
+        >>> mask, disturbance = simulate.make_landscape(shape=(2000,2000),
+        ...                                             forest_pct=0.60,
+        ...                                             loss_pct=0.02,
+        ...                                             seed=42)
 
         >>> # For mask plot make green forests and magenta disturbances
         >>> # For disturbance plot use a colormap that goes from jan 2020 to dec 2020 (in days since 1970)
@@ -410,6 +410,136 @@ def generate_landscape(
     land_cover[is_loss] = 2  # Overwrite forest with loss
 
     return land_cover, loss_dates
+
+
+def make_prediction(
+    ref_lc: np.ndarray,
+    ref_dates: np.ndarray,
+    omission_rate: float = 0.10,
+    commission_rate: float = 0.01,
+    lag_mean: float = 15.0,
+    lag_std: float = 10.0,
+    seed: Optional[int] = None
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Simulates a monitoring algorithm's output by degrading reference data.
+
+    Adds omission errors, spatially correlated commission errors, and temporal
+    detection lag. Detection lag is modeled using a Gamma distribution to
+    simulate the 'long tail' of delayed detections often seen in satellite
+    alerts.
+    This function is ideally used in combination with ``inrt.data.simulate.make_landscape``.
+
+    Args:
+        ref_lc (np.ndarray): Reference land cover array (0=Non, 1=Forest, 2=Loss).
+        ref_dates (np.ndarray): Reference dates of loss (days since 1970).
+        omission_rate (float): Probability (0.0 to 1.0) of missing a true loss pixel.
+            Defaults to 0.10.
+        commission_rate (float): Probability (0.0 to 1.0) of falsely flagging a
+            stable pixel as loss. Applied to the Total Stable Area.
+            Defaults to 0.01.
+        lag_mean (float): Mean delay in days between event and detection.
+            Defaults to 15.0.
+        lag_std (float): Standard deviation of the delay in days. Defaults to 10.0.
+        seed (int): Random seed for reproducibility. Defaults to None.
+
+    Examples:
+        >>> import numpy as np
+        >>> import matplotlib.pyplot as plt
+        >>> from nrt.data import simulate
+
+        >>> # 1. Generate Reference and Prediction
+        >>> mask, dates = make_landscape(shape=(1000, 1000), seed=42)
+        >>> pred_mask, pred_dates = make_prediction(mask, dates, seed=42)
+
+        >>> # 2. Compute Accuracy
+        >>> # Find ALL spatial matches (Intersection of Reference and Prediction)
+        >>> spatial_match = (mask == 2) & (pred_mask == 1)
+        >>>
+        >>> # Calculate lags for all matches
+        >>> all_lags = pred_dates[spatial_match].astype(float) - dates[spatial_match].astype(float)
+        >>>
+        >>> # Apply Temporal Rules: Valid if lag is within [-5, +30] days
+        >>> valid_window = (all_lags >= -5) & (all_lags <= 30)
+        >>> tp_count = np.count_nonzero(valid_window)
+        >>>
+        >>> ua = tp_count / np.count_nonzero(pred_mask == 1)
+        >>> pa = tp_count / np.count_nonzero(mask == 2)
+        >>> print(f"UA: {ua:.1%}, PA: {pa:.1%}")
+        UA: 74.0%, PA: 83.4%
+
+        >>> # 3. Visualize Lag Distribution (All Matches)
+        >>> plt.figure(figsize=(7, 4))
+        >>> # Plot all matches in grey (background)
+        >>> plt.hist(all_lags, bins=range(-20, 60), color='lightgrey', label='Rejected Matches')
+        >>> # Overlay True Positives in teal
+        >>> plt.hist(all_lags[valid_window], bins=range(-20, 60), color='teal', label='True Positives')
+        >>>
+        >>> # Add Tolerance Lines
+        >>> plt.axvline(x=-5, color='red', linestyle='--', linewidth=1, label='Tolerance (-5, +30)')
+        >>> plt.axvline(x=30, color='red', linestyle='--', linewidth=1)
+        >>>
+        >>> plt.xlabel('Detection Lag (days)')
+        >>> plt.ylabel('Pixel Count')
+        >>> plt.title(f'Temporal Accuracy Analysis (N={len(all_lags)})')
+        >>> plt.legend()
+        >>> plt.show()
+
+    Returns:
+        A tuple (pred_lc, pred_dates) where:
+
+        * **pred_lc** (np.ndarray): int8 array where 0=Stable, 1=Loss.
+        * **pred_dates** (np.ndarray): int32 array representing detection
+          dates as days since 1970-01-01.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+    shape = ref_lc.shape
+    # --- 1. Handle True Positives (TP) ---
+    # TP must be Class 2 (Loss) AND have a valid date (>0)
+    true_loss_mask = (ref_lc == 2) & (ref_dates > 0)
+    omission_mask = np.random.random(shape) < omission_rate
+    detected_tp_mask = true_loss_mask & (~omission_mask)
+
+    # --- 2. Handle False Positives (FP) ---
+    # RESTRICTION: Commission errors only allowed in STABLE FOREST (Class 1)
+    # Class 0 (Non-Forest) is excluded.
+    stable_forest_mask = (ref_lc == 1)
+    noise_fp = gaussian_filter(np.random.rand(*shape), sigma=10)
+    valid_fp_noise = noise_fp[stable_forest_mask]
+
+    if len(valid_fp_noise) > 0:
+        # Rate applies to the Stable Forest area
+        fp_cutoff = np.percentile(valid_fp_noise, (1 - commission_rate) * 100)
+        detected_fp_mask = (noise_fp >= fp_cutoff) & stable_forest_mask
+    else:
+        detected_fp_mask = np.zeros(shape, dtype=bool)
+
+    # --- 3. Assemble Output ---
+    pred_lc = np.zeros(shape, dtype=np.int8)
+    pred_lc[detected_tp_mask | detected_fp_mask] = 1
+    pred_dates = np.zeros(shape, dtype=np.int32)
+
+    # A. Dates for TPs (Reference + Lag)
+    if np.any(detected_tp_mask):
+        real_dates = ref_dates[detected_tp_mask]
+        theta = (lag_std ** 2) / lag_mean
+        k = lag_mean / theta
+        lags = np.random.gamma(k, theta, size=np.count_nonzero(detected_tp_mask))
+        lags = np.round(lags).astype(np.int32)
+        pred_dates[detected_tp_mask] = real_dates + lags
+
+    # B. Dates for FPs (Random within context)
+    if np.any(detected_fp_mask):
+        # Infer context year from reference data
+        if np.any(ref_dates > 0):
+            min_d, max_d = ref_dates[ref_dates > 0].min(), ref_dates[ref_dates > 0].max()
+        else:
+            min_d, max_d = 18262, 18627 # 2020 fallback
+
+        fp_dates = np.random.randint(min_d, max_d + 1, size=np.count_nonzero(detected_fp_mask))
+        pred_dates[detected_fp_mask] = fp_dates
+
+    return pred_lc, pred_dates
 
 
 if __name__ == "__main__":
